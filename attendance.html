@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출퇴근 기록</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+  .logo { text-align: center; margin-bottom: 28px; }
+  .logo h1 { font-size: 18px; font-weight: 600; color: #111; }
+  .logo p { font-size: 13px; color: #888; margin-top: 4px; }
+
+  .clock-box {
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .clock { font-size: 40px; font-weight: 300; color: #111; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .date { font-size: 13px; color: #888; margin-top: 6px; }
+
+  .label { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 10px; }
+
+  .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .name-btn {
+    padding: 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .name-btn:hover { border-color: #4A90D9; color: #4A90D9; background: #f0f6ff; }
+  .name-btn.selected { border-color: #4A90D9; background: #4A90D9; color: white; }
+
+  .status-box {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    text-align: center;
+  }
+  .s-label { font-size: 11px; color: #999; margin-bottom: 4px; }
+  .s-value { font-size: 14px; font-weight: 600; color: #333; font-variant-numeric: tabular-nums; }
+  .s-value.working { color: #1a9e75; }
+
+  .toast {
+    display: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .toast.success { background: #e8f8f2; color: #0f6e56; display: block; }
+  .toast.error { background: #fff0f0; color: #a32d2d; display: block; }
+  .toast.loading { background: #f0f0f0; color: #666; display: block; }
+
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .action-btn {
+    padding: 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .action-btn:active { transform: scale(0.97); }
+  .btn-in { background: #1a9e75; color: white; }
+  .btn-in:hover:not(:disabled) { background: #148060; }
+  .btn-out { background: white; color: #e24b4a; border: 1.5px solid #e24b4a !important; }
+  .btn-out:hover:not(:disabled) { background: #fff0f0; }
+  .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .divider { border: none; border-top: 1px solid #f0f0f0; margin: 20px 0; }
+
+  .today-title { font-size: 12px; font-weight: 600; color: #999; margin-bottom: 10px; letter-spacing: 0.05em; }
+  .today-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .today-name { font-weight: 600; color: #333; }
+  .today-times { color: #666; font-size: 12px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .badge-working { background: #e1f5ee; color: #085041; }
+  .badge-done { background: #efefef; color: #666; }
+  .badge-absent { background: #f5f5f5; color: #aaa; }
+  .badge-late { background: #fff3cd; color: #856404; }
+
+  .refresh-btn {
+    display: block; width: 100%; padding: 10px;
+    background: none; border: 1px solid #e0e0e0; border-radius: 8px;
+    font-size: 13px; color: #888; cursor: pointer; margin-top: 4px; transition: all 0.15s;
+  }
+  .refresh-btn:hover { background: #f5f5f5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>출퇴근 기록</h1>
+    <p id="today-date"></p>
+  </div>
+
+  <div class="clock-box">
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="date" id="clock-sub"></div>
+  </div>
+
+  <div class="label">이름을 선택하세요</div>
+  <div class="name-grid">
+    <button class="name-btn" onclick="selectName('신혜영')">신혜영</button>
+    <button class="name-btn" onclick="selectName('남민지')">남민지</button>
+  </div>
+
+  <div class="status-box">
+    <div><div class="s-label">출근</div><div class="s-value" id="s-in">—</div></div>
+    <div><div class="s-label">퇴근</div><div class="s-value" id="s-out">—</div></div>
+    <div><div class="s-label">근무시간</div><div class="s-value" id="s-dur">—</div></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="action-grid">
+    <button class="action-btn btn-in" id="btn-in" onclick="doCheckIn()" disabled>↑ 출근</button>
+    <button class="action-btn btn-out" id="btn-out" onclick="doCheckOut()" disabled>↓ 퇴근</button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="today-title">오늘 팀 현황</div>
+  <div id="today-list">
+    <div style="text-align:center;padding:12px;font-size:13px;color:#aaa">불러오는 중...</div>
+  </div>
+  <button class="refresh-btn" onclick="loadTodayAll()">↻ 현황 새로고침</button>
+</div>
+
+<script>
+// ====================================================
+// ⚠️ Apps Script 배포 후 여기에 URL 붙여넣기
+// ====================================================
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymhzKUAxqUa7DI2mrwpdivykvAi3xO6YeJMO4hwtJHcc3a7Y1fuKAK07DLAVnySvAQHQ/exec";
+// ====================================================
+
+const EMPLOYEES = ["신혜영", "남민지"];
+let selectedName = null;
+let workStartTime = null;
+
+function tick() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  document.getElementById("clock").textContent =
+    pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+  const days = ["일","월","화","수","목","금","토"];
+  document.getElementById("clock-sub").textContent =
+    now.getFullYear() + "년 " + (now.getMonth()+1) + "월 " + now.getDate() + "일 (" + days[now.getDay()] + ")";
+  document.getElementById("today-date").textContent =
+    (now.getMonth()+1) + "월 " + now.getDate() + "일 " + days[now.getDay()] + "요일";
+  if (workStartTime) {
+    const diff = Math.floor((now - workStartTime) / 1000);
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+    document.getElementById("s-dur").textContent =
+      h + "h " + pad(m) + "m " + pad(s) + "s";
+    document.getElementById("s-dur").classList.add("working");
+  }
+}
+setInterval(tick, 1000);
+tick();
+
+function selectName(name) {
+  selectedName = name;
+  document.querySelectorAll(".name-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.textContent.trim() === name);
+  });
+  loadStatus(name);
+}
+
+async function api(params) {
+  const url = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function loadStatus(name) {
+  showToast("loading", "상태 확인 중...");
+  try {
+    const data = await api({ action: "getStatus", name });
+    hideToast();
+    document.getElementById("s-in").textContent = data.checkIn || "—";
+    document.getElementById("s-out").textContent = data.checkOut || "—";
+    if (data.status === "none") {
+      document.getElementById("s-dur").textContent = "—";
+      document.getElementById("s-dur").classList.remove("working");
+      workStartTime = null;
+      setButtons("none");
+    } else if (data.status === "working") {
+      workStartTime = new Date(new Date().toDateString() + " " + data.checkIn);
+      setButtons("working");
+    } else {
+      document.getElementById("s-dur").textContent = data.duration || "—";
+      document.getElementById("s-dur").classList.remove("working");
+      workStartTime = null;
+      setButtons("done");
+    }
+  } catch(e) {
+    showToast("error", "서버 연결 실패. SCRIPT_URL을 확인해주세요.");
+  }
+}
+
+function setButtons(status) {
+  document.getElementById("btn-in").disabled = status !== "none";
+  document.getElementById("btn-out").disabled = status !== "working";
+}
+
+async function doCheckIn() {
+  if (!selectedName) return showToast("error", "이름을 먼저 선택해주세요.");
+  showToast("loading", "출근 처리 중...");
+  try {
+    const data = await api({ action: "checkIn", name: selectedName });
+    if (data.success) {
+      showToast("success", "✓ " + selectedName + "님 출근 완료 (" + data.time + ")");
+      await loadStatus(selectedName);
+      await loadTodayAll();
+    } else {
+      showToast("error", data.message);
+    }
+  } catch(e) { showToast("error", "오류가 발생했습니다. 다시 시도해주세요."); }
+}
+
+async function doCheckOut() {
+  if (!selectedName) return showToast("error", "이름을 먼저 선택해주세요.");
+  showToast("loading", "퇴근 처리 중...");
+  try {
+    const data = await api({ action: "checkOut", name: selectedName });
+    if (data.success) {
+      showToast("success", "✓ " + selectedName + "님 퇴근 완료 (" + data.time + ")");
+      await loadStatus(selectedName);
+      await loadTodayAll();
+    } else {
+      showToast("error", data.message);
+    }
+  } catch(e) { showToast("error", "오류가 발생했습니다. 다시 시도해주세요."); }
+}
+
+async function loadTodayAll() {
+  try {
+    const data = await api({ action: "getTodayAll" });
+    const recordMap = {};
+    (data.records || []).forEach(r => { recordMap[r.name] = r; });
+    document.getElementById("today-list").innerHTML = EMPLOYEES.map(name => {
+      const r = recordMap[name];
+      if (!r) return `<div class="today-row"><span class="today-name">${name}</span><span class="badge badge-absent">미출근</span></div>`;
+      const isWorking = r.checkIn && !r.checkOut;
+      const badge = isWorking
+        ? `<span class="badge badge-working">근무중</span>`
+        : r.checkOut ? `<span class="badge badge-done">퇴근</span>` : `<span class="badge badge-absent">미출근</span>`;
+      const late = r.statusLabel === "지각" ? `<span class="badge badge-late" style="margin-right:4px">지각</span>` : "";
+      const times = r.checkIn ? `<span class="today-times">${r.checkIn}${r.checkOut ? " ~ "+r.checkOut : ""}</span>` : "";
+      return `<div class="today-row"><span class="today-name">${name}</span><div style="display:flex;align-items:center;gap:6px">${times}${late}${badge}</div></div>`;
+    }).join("");
+  } catch(e) {
+    document.getElementById("today-list").innerHTML =
+      `<div style="text-align:center;padding:12px;font-size:13px;color:#aaa">현황을 불러올 수 없습니다</div>`;
+  }
+}
+
+loadTodayAll();
+</script>
+</body>
+</html>
