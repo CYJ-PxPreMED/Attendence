@@ -130,15 +130,15 @@ function selectName(name) {
 
 async function api(params) {
   const url = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
-  const res = await fetch(url, { redirect: "follow" });
+  const res = await fetch(url, { redirect: "follow", credentials: "omit" });
   const text = await res.text();
   try { return JSON.parse(text); } catch(e) {
     const m = text.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
-    throw new Error("응답 파싱 실패");
+    throw new Error("응답 파싱 실패: " + text.substring(0, 200));
   }
 }
-
+ 
 async function loadStatus(name) {
   showToast("loading", "상태 확인 중...");
   try {
