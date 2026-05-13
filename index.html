@@ -112,37 +112,50 @@ function showToast(type, msg) {
   t.className = "toast " + type;
   t.textContent = msg;
 }
-function hideToast() {
-  document.getElementById("toast").className = "toast";
-}
+function hideToast() { document.getElementById("toast").className = "toast"; }
 function setButtons(status) {
   document.getElementById("btn-in").disabled = status !== "none";
   document.getElementById("btn-out").disabled = status !== "working";
 }
 
+function api(params) {
+  return new Promise(function(resolve, reject) {
+    const cb = "cb" + Date.now();
+    const script = document.createElement("script");
+    const timer = setTimeout(function() {
+      delete window[cb];
+      script.remove();
+      reject(new Error("timeout"));
+    }, 15000);
+    window[cb] = function(data) {
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+      resolve(data);
+    };
+    params.callback = cb;
+    script.src = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
+    script.onerror = function() {
+      clearTimeout(timer);
+      delete window[cb];
+      reject(new Error("script error"));
+    };
+    document.body.appendChild(script);
+  });
+}
+
 function selectName(name) {
   selectedName = name;
-  document.querySelectorAll(".name-btn").forEach(btn => {
+  document.querySelectorAll(".name-btn").forEach(function(btn) {
     btn.classList.toggle("selected", btn.textContent.trim() === name);
   });
   loadStatus(name);
 }
 
-async function api(params) {
-  const url = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
-  const res = await fetch(url, { redirect: "follow", credentials: "omit" });
-  const text = await res.text();
-  try { return JSON.parse(text); } catch(e) {
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) return JSON.parse(m[0]);
-    throw new Error("응답 파싱 실패: " + text.substring(0, 200));
-  }
-}
- 
 async function loadStatus(name) {
   showToast("loading", "상태 확인 중...");
   try {
-    const data = await api({ action: "getStatus", name });
+    const data = await api({ action: "getStatus", name: name });
     hideToast();
     document.getElementById("s-in").textContent = data.checkIn || "—";
     document.getElementById("s-out").textContent = data.checkOut || "—";
@@ -199,8 +212,8 @@ async function loadTodayAll() {
   try {
     const data = await api({ action: "getTodayAll" });
     const recordMap = {};
-    (data.records || []).forEach(r => { recordMap[r.name] = r; });
-    document.getElementById("today-list").innerHTML = EMPLOYEES.map(name => {
+    (data.records || []).forEach(function(r) { recordMap[r.name] = r; });
+    document.getElementById("today-list").innerHTML = EMPLOYEES.map(function(name) {
       const r = recordMap[name];
       if (!r) return '<div class="today-row"><span class="today-name">' + name + '</span><span class="badge badge-absent">미출근</span></div>';
       const isWorking = r.checkIn && !r.checkOut;
